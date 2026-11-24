@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en" data-composition-variables='[
+  {"id":"name","type":"string","label":"Name","default":"Pebble"},
+  {"id":"tagline","type":"string","label":"Tagline","default":"A tiny habit tracker for the terminal."},
+  {"id":"command","type":"string","label":"Command","default":"pebble done run"},
+  {"id":"line1","type":"string","label":"Line 1","default":"Miss a day."},
+  {"id":"line2a","type":"string","label":"Line 2","default":"Keep your"},
+  {"id":"line2b","type":"string","label":"Line 2 (pill word)","default":"streak."},
+  {"id":"version","type":"string","label":"Version","default":"1.2"},
+  {"id":"install","type":"string","label":"Install","default":"brew install pebble"},
+  {"id":"accent","type":"color","label":"Ice (freeze)","default":"#5bc0ff"},
+  {"id":"ground","type":"color","label":"Ground","default":"#e4e8eb"},
+  {"id":"surface","type":"color","label":"Terminal","default":"#161a1f"},
+  {"id":"ink","type":"color","label":"Ink","default":"#111418"},
+  {"id":"endHold","type":"number","label":"End hold (s)","default":1.5,"min":0,"max":6,"step":0.1,"group":"Timing"}
+]'>
+<head>
+<meta charset="utf-8">
+<title>Pebble 1.2 · streak freeze</title>
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/mo.js"></script>
+<style id="mo-fonts">
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter-var.woff") format("woff"); font-weight: 100 900; font-style: normal; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono-var.woff2") format("woff2"); font-weight: 100 800; font-style: normal; }
+</style>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+  h1, h2, h3, p, figure { margin: 0; }
+  #film { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--ground); color: var(--ink);
+    font-family: "Inter", sans-serif; font-weight: 500; }
+  .light { position: absolute; inset: 0; background:
+      radial-gradient(1500px 950px at 32% 18%, #f4f6f7 0%, transparent 70%),
+      radial-gradient(1200px 800px at 85% 110%, #c9d0d6 0%, transparent 70%); }
+  .grain { position: absolute; inset: 0; opacity: .07; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  .mono { font-family: "JetBrains Mono", monospace; }
+
+  /* hook */
+  #hook { position: absolute; inset: 0; }
+  .brand { position: absolute; left: 0; right: 0; top: 330px; display: flex; align-items: center; justify-content: center; gap: 52px; }
+  .stone { width: 150px; height: 150px; border-radius: 38px; background: var(--surface);
+    box-shadow: inset 0 6px 0 #ffffff14, 0 24px 40px -18px #11141880; }
+  .brand h1 { font-size: 232px; font-weight: 900; letter-spacing: -9px; line-height: 1; }
+  .tagline { position: absolute; left: 0; right: 0; top: 640px; text-align: center; font-size: 54px; color: #4b535b; letter-spacing: -.5px; }
+  .tagline span { display: inline-block; opacity: 0; visibility: hidden; }
+  .mark { opacity: 0; visibility: hidden; position: absolute; left: 64px; top: 46px; display: flex; align-items: center; gap: 16px; font-size: 44px; font-weight: 900; letter-spacing: -1.5px; }
+  .mark i { width: 34px; height: 34px; border-radius: 9px; background: var(--surface); display: block; }
+
+  /* terminal */
+  #cam { position: absolute; inset: 0; transform-origin: 1289px 539px; transform: translateY(1000px); }
+  .ok, .weeks, .days, .status .missed, .status .kept, .l1 .w, .l2a, .pill .t, .endname, .chip { opacity: 0; visibility: hidden; }
+  .term { position: absolute; left: 370px; top: 150px; width: 1180px; height: 840px; border-radius: 24px; background: var(--surface);
+    box-shadow: 0 50px 90px -30px #0d10146e, 0 0 0 1px #0000001a; overflow: hidden; }
+  .bar { height: 56px; display: flex; align-items: center; gap: 12px; padding-left: 26px; background: #1d2228; }
+  .bar i { width: 16px; height: 16px; border-radius: 50%; background: #3a4149; display: block; }
+  .line { position: absolute; left: 70px; font-size: 40px; color: #e8ecef; white-space: pre; }
+  .prompt { top: 92px; }
+  .prompt .ps { color: #7f8992; }
+  .cursor { display: inline-block; width: 22px; height: 44px; background: #c9d0d6; vertical-align: -8px; margin-left: 4px; }
+  .ok { top: 152px; color: #aeb7bf; font-size: 36px; }
+  .weeks { position: absolute; top: 158px; right: 162px; font-size: 32px; color: #7f8992; }
+  .days { position: absolute; left: 120px; top: 220px; }
+  .days span { position: absolute; left: 0; width: 40px; font-size: 32px; line-height: 58px; color: #7f8992; text-align: center; }
+  .grid { position: absolute; left: 190px; top: 220px; }
+  .cell { position: absolute; width: 58px; height: 58px; border-radius: 12px; background: #262c33; }
+  .cell .on { position: absolute; inset: 0; border-radius: 12px; background: #b9c2ca; transform: scale(0); }
+  .cell.future { background: transparent; box-shadow: inset 0 0 0 2px #2d343b; }
+  .miss .ring { position: absolute; inset: -7px; border-radius: 17px; box-shadow: 0 0 0 3px #e8ecef; opacity: 0; }
+  .miss .ice { position: absolute; inset: 0; border-radius: 12px; background: var(--accent); transform: scale(0); display: grid; place-items: center; }
+  .miss .ice svg { width: 40px; height: 40px; }
+  .ripple { position: absolute; left: 1289px; top: 539px; width: 80px; height: 80px; margin: -40px 0 0 -40px; border-radius: 50%;
+    border: 6px solid var(--accent); opacity: 0; }
+  .status { top: 742px; font-size: 38px; }
+  .status .missed { color: #e8ecef; }
+  .status .kept { position: absolute; left: 0; top: 0; color: var(--accent); }
+  .status .kept b { font-weight: 700; }
+  .status .kept em { font-style: normal; color: #e8ecef; }
+
+  /* the line */
+  #line { position: absolute; inset: 0; background: var(--surface); visibility: hidden; }
+  #line .glow { position: absolute; inset: 0; background: radial-gradient(1300px 800px at 50% 40%, #222830 0%, transparent 70%); }
+  .l1, .l2 { position: absolute; left: 0; right: 0; text-align: center; font-weight: 800; letter-spacing: -6px; color: #f2f4f6; line-height: 1; }
+  .l1 { top: 250px; font-size: 190px; }
+  .l2 { top: 520px; font-size: 190px; }
+  .w { display: inline-block; }
+  .pill { position: relative; display: inline-block; padding: 0 34px 12px; margin-left: 14px; color: #f2f4f6; }
+  .pill .bg { position: absolute; inset: 6px 0 -6px; border-radius: 30px; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); z-index: 0; }
+  .pill .t { position: relative; z-index: 1; }
+
+  /* end */
+  #end { position: absolute; inset: 0; visibility: hidden; }
+  .endname { position: absolute; left: 0; right: 0; top: 300px; display: flex; align-items: center; justify-content: center; gap: 44px; }
+  .endname .stone { width: 128px; height: 128px; border-radius: 32px; }
+  .endname h2 { font-size: 200px; font-weight: 900; letter-spacing: -8px; line-height: 1; }
+  .endname h2 .v { font-weight: 300; color: #5b636b; letter-spacing: -4px; margin-left: 28px; }
+  .chip { position: absolute; left: 50%; top: 640px; transform: translateX(-50%); padding: 26px 46px; border-radius: 20px; background: var(--surface);
+    font-size: 48px; color: #e8ecef; white-space: pre; }
+  .chip .ps { color: #7f8992; }
+</style>
+</head>
+<body>
+<div id="film" data-composition-id="film" data-width="1920" data-height="1080">
+  <audio id="mo-sound" src="assets/sound.wav" data-start="0" data-duration="15" data-track-index="8" data-volume="1"></audio>
+  <div class="light"></div>
+
+  <section id="hook" data-mo-id="hook">
+    <div class="brand" data-mo-id="brand"><div class="stone"></div><h1 data-mo-id="name" data-var-text="name">Pebble</h1></div>
+    <p class="tagline" data-mo-id="tagline"><span data-var-text="tagline">A tiny habit tracker for the terminal.</span></p>
+  </section>
+
+  <div id="cam">
+    <section class="term" data-mo-id="terminal">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <div class="line prompt mono" data-mo-id="command"><span class="ps">$ </span><span id="typed" data-mo-var="command"></span><span class="cursor"></span></div>
+      <div class="line ok mono" data-mo-id="ok">✓ run</div>
+      <div class="weeks mono" data-mo-id="weeks">last 12 weeks</div>
+      <div class="days mono" id="days"></div>
+      <div class="grid" id="grid" data-mo-id="calendar"></div>
+      <div class="line status mono" data-mo-id="status">
+        <span class="missed">missed a day</span>
+        <span class="kept"><b>Streak freeze</b> <em>· streak kept</em></span>
+      </div>
+    </section>
+    <div class="ripple"></div>
+  </div>
+  <div class="mark" data-mo-id="mark"><i></i><span data-var-text="name">Pebble</span></div>
+
+  <section id="line" data-mo-id="line">
+    <div class="glow"></div>
+    <h2 class="l1" data-mo-id="line1" data-mo-var="line1"></h2>
+    <h2 class="l2" data-mo-id="line2"><span data-var-text="line2a" class="w l2a">Keep your</span><span class="pill w"><span class="bg"></span><span class="t" data-var-text="line2b">streak.</span></span></h2>
+  </section>
+
+  <section id="end" data-mo-id="end">
+    <div class="endname"><div class="stone"></div><h2 data-mo-id="endname"><span data-var-text="name">Pebble</span><span class="v" data-var-text="version">1.2</span></h2></div>
+    <div class="chip mono" data-mo-id="install"><span class="ps">$ </span><span data-var-text="install">brew install pebble</span></div>
+  </section>
+
+  <div class="grain"></div>
+</div>
+
+<script type="text/vnd.abc" id="mo-score">
+X:1
+T:Pebble 1.2 · the calendar that forgives
+M:4/4
+L:1/8
+Q:1/4=128
+K:D
+V:MAR inst=marimba role=melody
+!mark:hook! !mf! A2 F2 E4 | !mark:type! z4 F2 A2 | !mark:grid! z8 | !mark:miss! z8 |
+!mark:point! !f! a2 f2 d4 | !mark:line! z4 a2 f2 | e2 f2 a4 | !mf! a2 f2 d4 |
+V:GLK inst=glock gain=0.35
+z8 | z8 | z8 | z8 | !f! a'2 f'2 d'4 | z8 | z8 | !mf! a'2 f'2 d'4 |
+V:PAD inst=warmpad gain=0.4
+!mp! [DFA]8 | [DFA]8 | [B,DF]8 | !crescendo(! [A,CE]6 !crescendo)! z2 | !f! [DFAd]8 | [B,DFB]8 | [G,B,DG]4 [A,CEA]4 | !mf! [DFAd]8 |
+V:PLK inst=synpluck gain=0.35
+z8 | z8 | !mp! B,/F/B/F/ B,/F/B/F/ B,/F/B/F/ B,/F/B/F/ | A,/E/A/E/ A,/E/A/E/ A,/E/A/E/ z2 |
+!f! D/A/d/A/ D/A/d/A/ D/A/d/A/ D/A/d/A/ | B,/F/B/F/ B,/F/B/F/ B,/F/B/F/ B,/F/B/F/ | G,/D/G/D/ G,/D/G/D/ A,/E/A/E/ A,/E/A/E/ | z8 |
+V:BAS inst=synbass gain=0.7
+!mf! D,2 z2 z4 | D,2 z D, D,2 z D, | B,,2 z B,, B,,2 z B,, | A,,2 z A,, A,,2 z2 |
+!f! D,2 z D, D,2 z D, | B,,2 z B,, B,,2 z B,, | G,,2 z G,, A,,2 z A,, | D,,2 z6 |
+V:DR inst=drums kit=pop gain=0.8
+!mp! [^C,C,,]2 ^F,,2 ^F,,2 ^F,,2 | C,, ^F,, ^F,, ^F,, [C,,D,,] ^F,, ^F,, ^F,, |
+[C,,^F,,]^F,, [D,,^F,,]^F,, [C,,^F,,]^F,, [D,,^F,,]^F,, | !crescendo(! [C,,^F,,]^F,, D,,D,, D,,/D,,/D,,/D,,/ !crescendo)! !rise(! z2 |
+!rise)! !hit! !f! [^C,C,,^F,,]^F,, [D,,^F,,]^F,, [C,,^F,,]^F,, [D,,^F,,]^F,, | [C,,^F,,]^F,, [D,,^F,,]^F,, [C,,^F,,]^F,, [D,,^F,,]^F,, |
+[C,,^F,,]^F,, [D,,^F,,]^F,, [C,,^F,,]^F,, [D,,^F,,]D,,/D,,/ | [^C,C,,]z z2 z4 |
+</script>
+
+<script>
+  const V = MO.vars();
+  MO.music({ bpm: 128 });
+  const B = (n) => MO.beat(n);            // beats → seconds (0.46875 s)
+  const BAR = (n) => MO.beat(4 * n);      // bars → seconds (1.875 s)
+  const esc = (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] || c;
+
+  // ---- calendar: 12 weeks × 7 days, filled week by week (column-major)
+  const COLS = 12, ROWS = 7, PITCH = 70;
+  const MISS = { c: 10, r: 2 };           // the one missed day (week 11, Wednesday)
+  const TODAY = { c: 11, r: 3 };          // the last filled day
+  const grid = document.getElementById('grid');
+  const days = document.getElementById('days');
+  'MTWTFSS'.split('').forEach((d, r) => { const s = document.createElement('span'); s.textContent = d; s.style.top = (r * PITCH) + 'px'; days.appendChild(s); });
+  const before = [], after = [];
+  let missEl = null;
+  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
+    const el = document.createElement('div');
+    el.className = 'cell';
+    el.style.left = (c * PITCH) + 'px'; el.style.top = (r * PITCH) + 'px';
+    const idx = c * ROWS + r, missIdx = MISS.c * ROWS + MISS.r, todayIdx = TODAY.c * ROWS + TODAY.r;
+    if (idx === missIdx) {
+      el.classList.add('miss');
+      el.innerHTML = '<div class="ring"></div><div class="ice"><svg viewBox="-20 -20 40 40" fill="none" stroke="#0e1216" stroke-width="3.2" stroke-linecap="round">' +
+        [0, 60, 120].map((a) => `<g transform="rotate(${a})"><line x1="0" y1="-15" x2="0" y2="15"/><path d="M-5 -11 L0 -6 L5 -11 M-5 11 L0 6 L5 11"/></g>`).join('') + '</svg></div>';
+      missEl = el;
+    } else if (idx > todayIdx) {
+      el.classList.add('future');
+    } else {
+      el.innerHTML = '<div class="on"></div>';
+      (idx < missIdx ? before : after).push(el.querySelector('.on'));
+    }
+    grid.appendChild(el);
+  }
+
+  // ---- the line: one span per word, built from the variable
+  const l1 = document.querySelector('.l1');
+  l1.innerHTML = V.line1.split(' ').map((w) => `<span class="w">${[...w].map(esc).join('')}</span>`).join(' ');
+  const typed = document.getElementById('typed');
+
+  const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+
+  // initial states (nothing shows before its moment)
+
+  // ---- bar 1 · hook: the name is already there on frame one, settling onto beat 1
+  tl.addLabel('scene:hook', 0)
+    .fromTo('.brand', { scale: 1.12 }, { scale: 1, duration: .8, ease: 'expo.out' }, 0)
+    .fromTo('.brand .stone', { rotation: -14, y: -30 }, { rotation: 0, y: 0, duration: .7, ease: 'back.out(2)' }, 0)
+    .fromTo('.tagline span', { yPercent: 110, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: .6, ease: 'expo.out', immediateRender: false }, B(2));
+  MO.sfx('slide', B(2), { gain: .4 });
+
+  // ---- bar 2 · the terminal rises; the command is typed
+  tl.addLabel('scene:type', BAR(1))
+    .to('#hook', { y: -360, scale: .6, autoAlpha: 0, duration: .32, ease: 'power3.in' }, BAR(1) - .22)
+    .fromTo('#cam', { y: 1000 }, { y: 0, duration: .7, ease: 'expo.out', immediateRender: false }, BAR(1))
+    .fromTo('.mark', { autoAlpha: 0, x: -20 }, { autoAlpha: 1, x: 0, duration: .5, immediateRender: false }, BAR(1) + .25);
+  MO.sfx('whoosh', BAR(1) + .15, { gain: .5 });
+  const T0 = BAR(1) + B(0.6), CH = .055;
+  const cmd = { n: 0 };
+  tl.to(cmd, { n: V.command.length, duration: V.command.length * CH, ease: 'none',
+      onUpdate: () => { typed.textContent = V.command.slice(0, Math.round(cmd.n)); } }, T0);
+  for (let i = 0; i < V.command.length; i += 2) MO.sfx('type', T0 + i * CH, { gain: .35, pan: -.2 + i * .03 });
+  MO.sfx('click', BAR(1) + B(3) + .05, { gain: .6 });               // Enter
+
+  // ---- bar 3 · the calendar fills, week by week
+  tl.addLabel('scene:grid', BAR(2))
+    .to('.cursor', { autoAlpha: 0, duration: .01 }, BAR(2))
+    .fromTo('.ok', { autoAlpha: 0 }, { autoAlpha: 1, duration: .15, immediateRender: false }, BAR(2))
+    .fromTo(['.weeks', '.days'], { autoAlpha: 0 }, { autoAlpha: 1, duration: .3, immediateRender: false }, BAR(2) + .1);
+  MO.sfx('tick', BAR(2), { gain: .5 });
+  const FILL0 = BAR(2) + .25, FILL = BAR(3) - .2 - FILL0;          // ends just before the stall (bar 4)
+  tl.to(before, { scale: 1, duration: .22, ease: 'back.out(2.2)', stagger: { each: FILL / before.length } }, FILL0);
+  for (let c = 0; c <= MISS.c; c++) MO.sfx('pop', FILL0 + (c * ROWS / before.length) * FILL + .08, { gain: .35, note: (c % 7) + 1, pan: -.5 + c * .1 });
+
+  // ---- bar 4 · the wave stalls on the missed day; the camera leans in; a stop
+  tl.addLabel('scene:miss', BAR(3))
+    .to('.miss .ring', { opacity: 1, duration: .12, repeat: 3, yoyo: true, ease: 'none' }, BAR(3))
+    .set('.miss .ring', { opacity: 1 }, BAR(3) + .5)
+    .fromTo('.status .missed', { autoAlpha: 0 }, { autoAlpha: 1, duration: .2, immediateRender: false }, BAR(3) + B(1))
+    .to('#cam', { scale: 1.08, duration: B(3), ease: 'sine.inOut' }, BAR(3));
+  MO.sfx('thud', BAR(3), { gain: .5 });
+  MO.sfx('type', BAR(3) + B(1), { gain: .3 });
+
+  // ---- bar 5 · THE POINT: the day freezes, the streak runs on
+  const P = BAR(4);
+  tl.addLabel('scene:point', P)
+    .to('.miss .ring', { opacity: 0, duration: .1 }, P)
+    .to('.miss .ice', { scale: 1, duration: .45, ease: 'back.out(2.4)' }, P)
+    .fromTo('.miss .ice svg', { rotation: -90 }, { rotation: 0, duration: .6, ease: 'expo.out', immediateRender: false }, P)
+    .fromTo('.ripple', { scale: .4, opacity: .9 }, { scale: 9, opacity: 0, duration: 1.1, ease: 'expo.out', immediateRender: false }, P)
+    .to('#cam', { scale: 1.13, duration: .5, ease: 'back.out(1.6)' }, P)
+    .to('.status .missed', { autoAlpha: 0, y: -24, duration: .15 }, P)
+    .fromTo('.status .kept', { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: .35, ease: 'expo.out', immediateRender: false }, P + .05)
+    .to(after, { scale: 1, duration: .22, ease: 'back.out(2.2)', stagger: .07 }, P + B(1));
+  MO.sfx('sparkle', P + .05, { gain: .5 });
+  after.forEach((_, i) => { if (i % 2 === 0) MO.sfx('pop', P + B(1) + i * .07 + .08, { gain: .3, note: 3 + i / 2, pan: .2 + i * .05 }); });
+
+  // ---- bars 6–7 · the line, word by word on the beat
+  const L = BAR(5);
+  tl.addLabel('scene:line', L)
+    .set('#line', { visibility: 'visible' }, L)
+    .set(['#cam', '.mark'], { visibility: 'hidden' }, L);
+  const w1 = [...document.querySelectorAll('.l1 .w')];
+  w1.forEach((w, i) => {
+    tl.fromTo(w, { autoAlpha: 0, y: 70, scale: 1.25 }, { autoAlpha: 1, y: 0, scale: 1, duration: .35, ease: 'expo.out', immediateRender: false }, L + B(i));
+    MO.sfx('hit', L + B(i) + .03, { gain: .45 + i * .08, pan: -.3 + i * .3 });
+  });
+  tl.fromTo(['.l2a', '.pill .t'], { autoAlpha: 0, y: 70 }, { autoAlpha: 1, y: 0, duration: .4, ease: 'expo.out', immediateRender: false }, BAR(6))
+    .fromTo('.pill .bg', { scaleX: 0 }, { scaleX: 1, duration: .4, ease: 'expo.inOut', immediateRender: false }, BAR(6) + B(1))
+    .fromTo('.pill .t', { color: '#f2f4f6' }, { color: '#0e1216', duration: .2, immediateRender: false }, BAR(6) + B(1) + .05);
+  MO.sfx('thud', BAR(6) + .05, { gain: .6 });
+  MO.sfx('draw', BAR(6) + B(1), { gain: .45 });
+
+  // ---- bar 8 · the end card, held
+  const E = BAR(7) - B(1);                 // one beat early so the card holds ~2 s; the score's sonic logo lands on bar 8
+  tl.addLabel('scene:end', E)
+    .set('#line', { visibility: 'hidden' }, E)
+    .set('#end', { visibility: 'visible' }, E)
+    .fromTo('.endname', { scale: 1.08, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .45, ease: 'expo.out', immediateRender: false }, E)
+    .fromTo('.chip', { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .4, ease: 'expo.out', immediateRender: false }, E + .06);
+  MO.sfx('chime', E + .05, { gain: .45 });
+  tl.to({}, { duration: Math.max(0, BAR(8) - 1.5 - E) }, E)         // last element lands, then…
+    .to({}, { duration: V.endHold });                               // …the closing hold: 1.5 s ends the film at 15.0 s, a longer hold makes a longer film
+
+  window.__timelines['film'] = tl;
+</script>
+</body>
+</html>
